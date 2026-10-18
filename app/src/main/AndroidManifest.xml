@@ -1,29 +1,36 @@
-&lt;manifest xmlns:android="http://schemas.android.com/apk/res/android"&gt;
-    &lt;uses-permission android:name="android.permission.POST_NOTIFICATIONS" /&gt;
 
-    &lt;application
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
         android:allowBackup="false"
         android:label="دلفري الحجي - اختبار الرقم"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:supportsRtl="true"&gt;
+        android:supportsRtl="true">
 
-        &lt;activity
+        <activity
             android:name=".MainActivity"
-            android:exported="true"&gt;
-            &lt;intent-filter&gt;
-                &lt;action android:name="android.intent.action.MAIN" /&gt;
-                &lt;category android:name="android.intent.category.LAUNCHER" /&gt;
-            &lt;/intent-filter&gt;
-        &lt;/activity&gt;
+            android:exported="true">
 
-        &lt;service
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <service
             android:name=".CallerScreeningService"
             android:permission="android.permission.BIND_SCREENING_SERVICE"
-            android:exported="true"&gt;
-            &lt;intent-filter&gt;
-                &lt;action android:name="android.telecom.CallScreeningService" /&gt;
-            &lt;/intent-filter&gt;
-        &lt;/service&gt;
+            android:exported="true">
 
-    &lt;/application&gt;
-&lt;/manifest&gt;
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+
+        </service>
+
+    </application>
+
+</manifest>
