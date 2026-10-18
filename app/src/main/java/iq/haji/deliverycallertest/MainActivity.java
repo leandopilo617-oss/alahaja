@@ -9,21 +9,40 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
+
     public static final String PREFS = "caller_test";
     public static final String KEY_NUMBER = "latest_number";
     public static final String CHANNEL_ID = "caller_test_channel";
+
     private TextView numberView;
     private TextView statusView;
+
+    private final Handler autoRefreshHandler =
+            new Handler(Looper.getMainLooper());
+
+    private final Runnable autoRefreshTask = new Runnable() {
+        @Override
+        public void run() {
+            if (numberView != null) {
+                refreshNumber();
+            }
+
+            autoRefreshHandler.postDelayed(this, 1000);
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         createNotificationChannel();
         showScreen();
         requestNotificationPermission();
@@ -32,10 +51,24 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (numberView != null) {
-            refreshNumber();
-            refreshRoleStatus();
-        }
+
+        refreshNumber();
+        refreshRoleStatus();
+
+        autoRefreshHandler.removeCallbacks(autoRefreshTask);
+        autoRefreshHandler.post(autoRefreshTask);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        autoRefreshHandler.removeCallbacks(autoRefreshTask);
+    }
+
+    @Override
+    protected void onDestroy() {
+        autoRefreshHandler.removeCallbacks(autoRefreshTask);
+        super.onDestroy();
     }
 
     private void showScreen() {
@@ -53,7 +86,7 @@ public class MainActivity extends Activity {
         layout.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("اختبار التقاط رقم المتصل");
+        subtitle.setText("استقبال رقم المتصل تلقائياً");
         subtitle.setTextSize(18);
         subtitle.setGravity(Gravity.CENTER);
         subtitle.setPadding(0, 12, 0, 24);
@@ -86,15 +119,18 @@ public class MainActivity extends Activity {
         clearButton.setText("مسح الرقم الأخير");
         clearButton.setOnClickListener(v -> {
             getSharedPreferences(PREFS, MODE_PRIVATE)
-                .edit().remove(KEY_NUMBER).apply();
+                    .edit()
+                    .remove(KEY_NUMBER)
+                    .apply();
+
             refreshNumber();
         });
         layout.addView(clearButton);
 
         TextView note = new TextView(this);
         note.setText(
-            "اختبار محلي فقط. لا يرسل التطبيق الأرقام إلى الإنترنت. " +
-            "يحتفظ بآخر رقم حتى تمسحه."
+                "يعرض التطبيق آخر رقم مستلم تلقائياً أثناء فتحه. " +
+                "الأرقام محفوظة محلياً ولا يرسلها التطبيق إلى الإنترنت."
         );
         note.setTextSize(13);
         note.setGravity(Gravity.CENTER);
@@ -102,6 +138,7 @@ public class MainActivity extends Activity {
         layout.addView(note);
 
         setContentView(layout);
+
         refreshNumber();
         refreshRoleStatus();
     }
@@ -113,12 +150,12 @@ public class MainActivity extends Activity {
         }
 
         RoleManager manager =
-            (RoleManager) getSystemService(Context.ROLE_SERVICE);
+                (RoleManager) getSystemService(Context.ROLE_SERVICE);
 
         if (manager == null ||
-            !manager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
+                !manager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
             statusView.setText(
-                "الجهاز لا يتيح صلاحية تعريف المكالمات لهذا التطبيق"
+                    "الجهاز لا يتيح صلاحية تعريف المكالمات لهذا التطبيق"
             );
             return;
         }
@@ -127,47 +164,60 @@ public class MainActivity extends Activity {
             refreshRoleStatus();
         } else {
             startActivityForResult(
-                manager.createRequestRoleIntent(
-                    RoleManager.ROLE_CALL_SCREENING
-                ),
-                42
+                    manager.createRequestRoleIntent(
+                            RoleManager.ROLE_CALL_SCREENING
+                    ),
+                    42
             );
         }
     }
 
     private void refreshNumber() {
-        if (numberView == null) return;
+        if (numberView == null) {
+            return;
+        }
+
         String number = getSharedPreferences(PREFS, MODE_PRIVATE)
-            .getString(KEY_NUMBER, "");
+                .getString(KEY_NUMBER, "");
+
         numberView.setText(
-            number == null || number.isEmpty()
-                ? "بانتظار اتصال وارد"
-                : number
+                number == null || number.isEmpty()
+                        ? "بانتظار اتصال وارد"
+                        : number
         );
     }
 
     private void refreshRoleStatus() {
-        if (statusView == null) return;
+        if (statusView == null) {
+            return;
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             RoleManager manager =
-                (RoleManager) getSystemService(Context.ROLE_SERVICE);
+                    (RoleManager) getSystemService(Context.ROLE_SERVICE);
+
             boolean active = manager != null &&
-                manager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING);
+                    manager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING);
+
             statusView.setText(
-                active
-                    ? "الحالة: صلاحية تعريف المكالمات مفعّلة"
-                    : "الحالة: اضغط زر التفعيل أولاً"
+                    active
+                            ? "الحالة: صلاحية تعريف المكالمات مفعّلة"
+                            : "الحالة: اضغط زر التفعيل أولاً"
             );
         }
     }
 
     private void requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission("android.permission.POST_NOTIFICATIONS")
-                != PackageManager.PERMISSION_GRANTED) {
+                checkSelfPermission(
+                        "android.permission.POST_NOTIFICATIONS"
+                ) != PackageManager.PERMISSION_GRANTED) {
+
             requestPermissions(
-                new String[]{"android.permission.POST_NOTIFICATIONS"},
-                43
+                    new String[]{
+                            "android.permission.POST_NOTIFICATIONS"
+                    },
+                    43
             );
         }
     }
@@ -175,13 +225,16 @@ public class MainActivity extends Activity {
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                "رقم المتصل",
-                NotificationManager.IMPORTANCE_HIGH
+                    CHANNEL_ID,
+                    "رقم المتصل",
+                    NotificationManager.IMPORTANCE_HIGH
             );
+
             channel.setDescription("إظهار آخر رقم متصل للاختبار");
+
             NotificationManager manager =
-                getSystemService(NotificationManager.class);
+                    getSystemService(NotificationManager.class);
+
             if (manager != null) {
                 manager.createNotificationChannel(channel);
             }
